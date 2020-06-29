@@ -31,6 +31,7 @@ import java.security.spec.ECPoint;
 import java.security.spec.ECPrivateKeySpec;
 import java.security.spec.ECPublicKeySpec;
 import java.security.spec.KeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -42,14 +43,22 @@ import org.eclipse.leshan.client.resource.DummyInstanceEnabler;
 import org.eclipse.leshan.client.resource.ObjectsInitializer;
 import org.eclipse.leshan.core.LwM2mId;
 import org.eclipse.leshan.core.SecurityMode;
+import org.eclipse.leshan.core.request.BootstrapDiscoverRequest;
 import org.eclipse.leshan.core.request.Identity;
+import org.eclipse.leshan.core.response.BootstrapDiscoverResponse;
 import org.eclipse.leshan.core.util.Hex;
 import org.eclipse.leshan.server.bootstrap.BootstrapConfig;
 import org.eclipse.leshan.server.bootstrap.BootstrapConfig.ACLConfig;
 import org.eclipse.leshan.server.bootstrap.BootstrapConfig.ServerConfig;
 import org.eclipse.leshan.server.bootstrap.BootstrapConfig.ServerSecurity;
 import org.eclipse.leshan.server.bootstrap.BootstrapConfigStore;
+import org.eclipse.leshan.server.bootstrap.BootstrapFailureCause;
+import org.eclipse.leshan.server.bootstrap.BootstrapHandler;
+import org.eclipse.leshan.server.bootstrap.BootstrapHandlerFactory;
 import org.eclipse.leshan.server.bootstrap.BootstrapSession;
+import org.eclipse.leshan.server.bootstrap.BootstrapSessionManager;
+import org.eclipse.leshan.server.bootstrap.DefaultBootstrapHandler;
+import org.eclipse.leshan.server.bootstrap.LwM2mBootstrapRequestSender;
 import org.eclipse.leshan.server.californium.bootstrap.LeshanBootstrapServer;
 import org.eclipse.leshan.server.californium.bootstrap.LeshanBootstrapServerBuilder;
 import org.eclipse.leshan.server.security.BootstrapSecurityStore;
@@ -65,6 +74,7 @@ public class BootstrapIntegrationTestHelper extends SecureIntegrationTestHelper 
     public LeshanBootstrapServer bootstrapServer;
     public final PublicKey bootstrapServerPublicKey;
     public final PrivateKey bootstrapServerPrivateKey;
+    public volatile BootstrapDiscoverResponse lastDiscoverAnswer;
 
     public BootstrapIntegrationTestHelper() {
         super();
@@ -97,7 +107,8 @@ public class BootstrapIntegrationTestHelper extends SecureIntegrationTestHelper 
         }
     }
 
-    public void createBootstrapServer(BootstrapSecurityStore securityStore, BootstrapConfigStore bootstrapStore) {
+    private LeshanBootstrapServerBuilder createBootstrapBuilder(BootstrapSecurityStore securityStore,
+            BootstrapConfigStore bootstrapStore) {
         if (bootstrapStore == null) {
             bootstrapStore = unsecuredBootstrapStore();
         }
@@ -114,6 +125,45 @@ public class BootstrapIntegrationTestHelper extends SecureIntegrationTestHelper 
         builder.setPrivateKey(bootstrapServerPrivateKey);
         builder.setPublicKey(bootstrapServerPublicKey);
 
+        return builder;
+    }
+
+    public void createBootstrapServer(BootstrapSecurityStore securityStore, BootstrapConfigStore bootstrapStore) {
+        bootstrapServer = createBootstrapBuilder(securityStore, bootstrapStore).build();
+    }
+
+    public void createBootstrapServer(BootstrapSecurityStore securityStore, BootstrapConfigStore bootstrapStore,
+            final BootstrapDiscoverRequest request) {
+        LeshanBootstrapServerBuilder builder = createBootstrapBuilder(securityStore, bootstrapStore);
+
+        // start bootstrap session by a bootstrap discover request
+        builder.setBootstrapHandlerFactory(new BootstrapHandlerFactory() {
+
+            @Override
+            public BootstrapHandler create(BootstrapConfigStore store, LwM2mBootstrapRequestSender sender,
+                    BootstrapSessionManager sessionManager) {
+                return new DefaultBootstrapHandler(store, sender, sessionManager) {
+
+                    @Override
+                    protected void startBootstrap(final BootstrapSession session, final BootstrapConfig cfg) {
+                        send(session, request, new SafeResponseCallback<BootstrapDiscoverResponse>(session) {
+
+                            @Override
+                            public void safeOnResponse(BootstrapDiscoverResponse response) {
+                                lastDiscoverAnswer = response;
+                                delete(session, cfg, new ArrayList<>(cfg.toDelete));
+                            }
+                        }, new SafeErrorCallback(session) {
+                            @Override
+                            public void safeOnError(Exception e) {
+                                stopSession(session, BootstrapFailureCause.INTERNAL_SERVER_ERROR);
+                            }
+                        });
+                    }
+                };
+            }
+        });
+
         bootstrapServer = builder.build();
     }
 
@@ -125,7 +175,7 @@ public class BootstrapIntegrationTestHelper extends SecureIntegrationTestHelper 
         // Create Security Object (with bootstrap server only)
         String bsUrl = "coap://" + bootstrapServer.getUnsecuredAddress().getHostString() + ":"
                 + bootstrapServer.getUnsecuredAddress().getPort();
-        return new Security(bsUrl, true, 3, new byte[0], new byte[0], new byte[0], 12345);
+        return new Security(bsUrl, true, 3, new byte[0], new byte[0], new byte[0], 0);
     }
 
     @Override
