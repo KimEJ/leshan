@@ -527,6 +527,13 @@ Contributors:
                                 <patch>equivalent</patch>
                             </versionIncreaseAllows>
                         </revapi.semver.ignore>
+                        <revapi.ignore>
+                            <item>
+                              <code>java.class.externalClassExposedInAPI</code>
+                              <class>class org.eclipse.leshan.core.request.BootstrapDiscoverRequest</class>
+                              <justification>See https://github.com/revapi/revapi/issues/186.</justification>
+                            </item>
+                        </revapi.ignore>
                         <revapi.java>
                             <checks>
                                 <nonPublicPartOfAPI>
