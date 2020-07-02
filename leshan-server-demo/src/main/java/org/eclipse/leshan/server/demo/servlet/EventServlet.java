@@ -94,15 +94,28 @@ public class EventServlet extends EventSourceServlet {
             
             System.out.println("new device: " + registration.getEndpoint());
             
-            //시간 읽어오기 test
             try {
-                AttributeSet attributes = AttributeSet.parse("hello.com");
-                WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1, attributes);
-                WriteAttributesResponse cResponse = server.send(registration, request);
-                System.out.println(cResponse);
+                ReadResponse response = server.send(registration, new ReadRequest(3,0,3));
+                if (response.isSuccess()) {
+                    System.out.println("Device Firmware Version:" + ((LwM2mResource)response.getContent()).getValue());
+
+                    // TODO: FOTA DB에 Firmware Version 검색
+                    
+                }else {
+                    System.out.println("Failed to read:" + response.getCode() + " " + response.getErrorMessage());
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            //ULI 쓰기 test
+            // try {
+            //     AttributeSet attributes = AttributeSet.parse("URI=hello.com");
+            //     WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1, attributes);
+            //     WriteAttributesResponse cResponse = server.send(registration, request);
+            //     System.out.println(cResponse);
+            // } catch (InterruptedException e) {
+            //     e.printStackTrace();
+            // }
         }
 
         @Override

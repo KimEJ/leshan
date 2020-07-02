@@ -237,6 +237,7 @@ public class ClientServlet extends HttpServlet {
             if (registration != null) {
                 if (path.length >= 3 && "attributes".equals(path[path.length - 1])) {
                     // create & process request WriteAttributes request
+                    System.out.println(req.getQueryString());
                     target = StringUtils.removeEnd(target, path[path.length - 1]);
                     AttributeSet attributes = AttributeSet.parse(req.getQueryString());
                     WriteAttributesRequest request = new WriteAttributesRequest(target, attributes);
