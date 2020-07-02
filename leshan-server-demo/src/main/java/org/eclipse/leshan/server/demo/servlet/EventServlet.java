@@ -40,6 +40,11 @@ import org.eclipse.leshan.server.queue.PresenceListener;
 import org.eclipse.leshan.server.registration.Registration;
 import org.eclipse.leshan.server.registration.RegistrationListener;
 import org.eclipse.leshan.server.registration.RegistrationUpdate;
+import org.eclipse.leshan.core.request.*;
+import org.eclipse.leshan.core.response.*;
+
+import org.eclipse.leshan.core.node.LwM2mResource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +72,8 @@ public class EventServlet extends EventSourceServlet {
 
     private static final long serialVersionUID = 1L;
 
+    private final LeshanServer server;
+
     private static final Logger LOG = LoggerFactory.getLogger(EventServlet.class);
 
     private final Gson gson;
@@ -83,6 +90,18 @@ public class EventServlet extends EventSourceServlet {
                 Collection<Observation> previousObsersations) {
             String jReg = EventServlet.this.gson.toJson(registration);
             sendEvent(EVENT_REGISTRATION, jReg, registration.getEndpoint());
+            
+            System.out.println("new device: " + registration.getEndpoint());
+            try {
+                ReadResponse response = server.send(registration, new ReadRequest(3,0,13));
+                if (response.isSuccess()) {
+                    System.out.println("Device time:" + ((LwM2mResource)response.getContent()).getValue());
+                }else {
+                    System.out.println("Failed to read:" + response.getCode() + " " + response.getErrorMessage());
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -156,6 +175,7 @@ public class EventServlet extends EventSourceServlet {
     };
 
     public EventServlet(LeshanServer server, int securePort) {
+        this.server = server;
         server.getRegistrationService().addListener(this.registrationListener);
         server.getObservationService().addListener(this.observationListener);
         server.getPresenceService().addListener(this.presenceListener);
