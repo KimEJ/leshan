@@ -75,6 +75,7 @@ public class MyFirmware extends BaseInstanceEnabler {
     @Override
     public WriteResponse write(ServerIdentity identity, int resourceid, LwM2mResource value) {
         LOG.info("Write on Device resource /{}/{}/{}", getModel().id, getId(), resourceid);
+        System.out.println(value);
         return WriteResponse.success();
     }
 

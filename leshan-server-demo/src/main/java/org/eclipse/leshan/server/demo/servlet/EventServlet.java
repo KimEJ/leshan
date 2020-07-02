@@ -44,6 +44,7 @@ import org.eclipse.leshan.core.request.*;
 import org.eclipse.leshan.core.response.*;
 
 import org.eclipse.leshan.core.node.LwM2mResource;
+import org.eclipse.leshan.core.attributes.*;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,12 +96,10 @@ public class EventServlet extends EventSourceServlet {
             
             //시간 읽어오기 test
             try {
-                ReadResponse response = server.send(registration, new ReadRequest(3,0,13));
-                if (response.isSuccess()) {
-                    System.out.println("Device time:" + ((LwM2mResource)response.getContent()).getValue());
-                }else {
-                    System.out.println("Failed to read:" + response.getCode() + " " + response.getErrorMessage());
-                }
+                AttributeSet attributes = AttributeSet.parse("hello.com");
+                WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1, attributes);
+                WriteAttributesResponse cResponse = server.send(registration, request);
+                System.out.println(cResponse);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
