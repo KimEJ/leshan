@@ -92,6 +92,8 @@ public class EventServlet extends EventSourceServlet {
             sendEvent(EVENT_REGISTRATION, jReg, registration.getEndpoint());
             
             System.out.println("new device: " + registration.getEndpoint());
+            
+            //시간 읽어오기 test
             try {
                 ReadResponse response = server.send(registration, new ReadRequest(3,0,13));
                 if (response.isSuccess()) {
