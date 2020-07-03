@@ -16,8 +16,10 @@
 package org.eclipse.leshan.server.demo.servlet;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,6 +32,8 @@ import org.eclipse.leshan.core.node.LwM2mNode;
 import org.eclipse.leshan.core.observation.Observation;
 import org.eclipse.leshan.core.response.ObserveResponse;
 import org.eclipse.leshan.server.californium.LeshanServer;
+import org.eclipse.leshan.server.demo.DB.Firmware;
+import org.eclipse.leshan.server.demo.DB.MongoDBConnector;
 import org.eclipse.leshan.server.demo.servlet.json.LwM2mNodeSerializer;
 import org.eclipse.leshan.server.demo.servlet.json.RegistrationSerializer;
 import org.eclipse.leshan.server.demo.servlet.log.CoapMessage;
@@ -100,22 +104,24 @@ public class EventServlet extends EventSourceServlet {
                     System.out.println("Device Firmware Version:" + ((LwM2mResource)response.getContent()).getValue());
 
                     // TODO: FOTA DB에 Firmware Version 검색
-                    
+                    Firmware firmware = MongoDBConnector.FindOne();
+
+                    //ULI 쓰기 test
+                    try {
+                        AttributeSet attributes = AttributeSet.parse(firmware.getULI());
+                        WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1, attributes);
+                        WriteAttributesResponse cResponse = server.send(registration, request);
+                        System.out.println(cResponse);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }       
+
                 }else {
                     System.out.println("Failed to read:" + response.getCode() + " " + response.getErrorMessage());
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            //ULI 쓰기 test
-            // try {
-            //     AttributeSet attributes = AttributeSet.parse("URI=hello.com");
-            //     WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1, attributes);
-            //     WriteAttributesResponse cResponse = server.send(registration, request);
-            //     System.out.println(cResponse);
-            // } catch (InterruptedException e) {
-            //     e.printStackTrace();
-            // }
         }
 
         @Override
@@ -125,6 +131,7 @@ public class EventServlet extends EventSourceServlet {
             regUpdate.registration = updatedRegistration;
             regUpdate.update = update;
             String jReg = EventServlet.this.gson.toJson(regUpdate);
+            System.out.println("Device Update:" + jReg);
             sendEvent(EVENT_UPDATED, jReg, updatedRegistration.getEndpoint());
         }
 
