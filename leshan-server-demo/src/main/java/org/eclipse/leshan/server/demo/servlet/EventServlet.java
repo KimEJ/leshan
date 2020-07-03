@@ -30,7 +30,6 @@ import org.eclipse.jetty.servlets.EventSource;
 import org.eclipse.jetty.servlets.EventSourceServlet;
 import org.eclipse.leshan.core.node.LwM2mNode;
 import org.eclipse.leshan.core.observation.Observation;
-import org.eclipse.leshan.core.response.ObserveResponse;
 import org.eclipse.leshan.server.californium.LeshanServer;
 import org.eclipse.leshan.server.demo.DB.Firmware;
 import org.eclipse.leshan.server.demo.DB.MongoDBConnector;
@@ -90,35 +89,56 @@ public class EventServlet extends EventSourceServlet {
 
     private final RegistrationListener registrationListener = new RegistrationListener() {
 
+        private final Registration registration;
+
         @Override
         public void registered(Registration registration, Registration previousReg,
                 Collection<Observation> previousObsersations) {
             String jReg = EventServlet.this.gson.toJson(registration);
             sendEvent(EVENT_REGISTRATION, jReg, registration.getEndpoint());
-            
+
             System.out.println("new device: " + registration.getEndpoint());
-            
+
             try {
-                ReadResponse response = server.send(registration, new ReadRequest(3,0,3));
-                if (response.isSuccess()) {
-                    System.out.println("Device Firmware Version:" + ((LwM2mResource)response.getContent()).getValue());
+                server.send(registration, new ReadRequest(3, 0, 3),
+                        new ResponseCallback<ReadResponse>() {
+                            @Override
+                            public void onResponse(ReadResponse response) {
+                                // TODO Auto-generated method stub
+                                if (response.isSuccess()) {
+                                    System.out.println("Device Firmware Version:"
+                                            + ((LwM2mResource)response.getContent()).getValue());
 
-                    // TODO: FOTA DB에 Firmware Version 검색
-                    Firmware firmware = MongoDBConnector.FindOne();
+                                    // TODO: FOTA DB에 Firmware Version 검색
+                                    Firmware firmware = MongoDBConnector.FindOne();
 
-                    //ULI 쓰기 test
-                    try {
-                        AttributeSet attributes = AttributeSet.parse(firmware.getULI());
-                        WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1, attributes);
-                        WriteAttributesResponse cResponse = server.send(registration, request);
-                        System.out.println(cResponse);
-                    } catch (InterruptedException e) {
+                                    if (firmware.isSuccess()) {
+                                        // ULI 쓰기 test
+                                        try {
+                                            AttributeSet attributes = AttributeSet.parse(firmware.getULI());
+                                            WriteAttributesRequest request = new WriteAttributesRequest(5, 0, 1,
+                                                    attributes);
+                                            WriteAttributesResponse cResponse = server.send(registration, request);
+                                            System.out.println(cResponse);
+                                        } catch (InterruptedException e) {
+                                            e.printStackTrace();
+                                        }
+                                    } else {
+                                        System.out.println("FOTA Not Found");
+                                    }
+                                } else {
+                                    System.out.println(
+                                            "Failed to read:" + response.getCode() + " " + response.getErrorMessage());
+                                }
+                            }
+                }, new ErrorCallback(){
+                
+                    @Override
+                    public void onError(Exception e) {
+                        // TODO Auto-generated method stub
                         e.printStackTrace();
-                    }       
-
-                }else {
-                    System.out.println("Failed to read:" + response.getCode() + " " + response.getErrorMessage());
-                }
+                    }
+                });
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

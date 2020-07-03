@@ -4,11 +4,13 @@ public class Firmware {
     private String oldVer;
     private String newVer;
     private String ULI;
+    private boolean success;
 
-    public Firmware(String oldVer, String newVer, String ULI){
+    public Firmware(String oldVer, String newVer, String ULI, boolean success){
         this.oldVer = oldVer;
         this.newVer = newVer;
         this.ULI = ULI;
+        this.success = success;
     }
 
     public String getOldVer() {
@@ -21,6 +23,10 @@ public class Firmware {
 
     public String getULI() {
         return ULI;
+    }
+
+    public boolean isSuccess() {
+        return success;
     }
 
     public void setOldVer(String oldVer) {
